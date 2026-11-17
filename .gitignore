@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.env
+.env.local
+.DS_Store
+# Originals are large; the resized copies in public/images are what get published.
+/images/
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/

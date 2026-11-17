@@ -1,0 +1,172 @@
+/*
+  Palette from the USFQ digital brand manual:
+  red #ED1C24 (brand), #C41B1E (active link), #1A1A1A, #EEEEED (general background).
+  #ED1C24 is only ~4:1 on white, so it is used for accents; text and
+  buttons use #C41B1E, which passes WCAG AA.
+  Type: Roboto for text (as in the manual); Cormorant Garamond stands in
+  for Athelas in headings; Montserrat stands in for Nexa in small caps labels.
+*/
+:root {
+  --red: #ed1c24;
+  --red-ink: #c41b1e;
+  --red-deep: #a3161a;
+  --red-tint: #fdf2f2;
+  --ink: #1a1a1a;
+  --text: #2c2c2c;
+  --muted: #666664;
+  --line: #e3e3e1;
+  --mist: #eeeeed;
+  --paper: #ffffff;
+  --ok: #2f6b3a;
+
+  --serif: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --sans: 'Roboto', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --caps: 'Montserrat', 'Roboto', system-ui, sans-serif;
+
+  --radius: 6px;
+  color-scheme: light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  /* Cormorant defaults to old-style figures ("1" looks like "I"). */
+  font-variant-numeric: lining-nums;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  margin: 0;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--red-ink);
+  text-underline-offset: 3px;
+  text-decoration-thickness: 1px;
+}
+a:hover {
+  color: var(--red-deep);
+}
+
+.caps {
+  font-family: var(--caps);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+input[type='text'],
+input[type='email'] {
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.7rem 0.85rem;
+  width: 100%;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input[type='text']:hover,
+input[type='email']:hover {
+  border-color: #c9c9c6;
+}
+input::placeholder {
+  color: #a3a3a0;
+}
+
+:focus-visible {
+  outline: 2px solid var(--red-ink);
+  outline-offset: 2px;
+}
+input[type='text']:focus-visible,
+input[type='email']:focus-visible {
+  outline: none;
+  border-color: var(--red-ink);
+  box-shadow: 0 0 0 3px rgba(196, 27, 30, 0.12);
+}
+
+input[type='checkbox'] {
+  accent-color: var(--red-ink);
+  width: 1.05rem;
+  height: 1.05rem;
+  margin: 0;
+  flex: none;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  font-family: var(--caps);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: var(--radius);
+  padding: 0.85rem 1.4rem;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  color: var(--ink);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.btn:hover:not(:disabled) {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+.btn.primary {
+  background: var(--red-ink);
+  border-color: var(--red-ink);
+  color: #fff;
+}
+.btn.primary:hover:not(:disabled) {
+  background: var(--red-deep);
+  border-color: var(--red-deep);
+  color: #fff;
+}
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}
