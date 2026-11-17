@@ -42,8 +42,8 @@ export function sample(list, n) {
 export function emptyAnswer(image) {
   return {
     image,
-    jina: { queries: null, found: true, satisfaction: null },
-    siglip: { queries: null, found: true, satisfaction: null },
+    jina: { queries: 1, found: true, satisfaction: null },
+    siglip: { queries: 1, found: true, satisfaction: null },
   };
 }
 

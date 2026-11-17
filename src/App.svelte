@@ -36,7 +36,11 @@
     const saved = loadState();
     if (saved && ['survey', 'submitting'].includes(saved.stage) && saved.answers?.length) {
       participant = saved.participant;
-      answers = saved.answers;
+      // Progress saved before queries defaulted to 1 may still hold null.
+      answers = saved.answers.map((a) => {
+        for (const m of MODELS) if (!(a[m.key].queries >= 1)) a[m.key].queries = 1;
+        return a;
+      });
       index = Math.min(saved.index ?? 0, saved.answers.length - 1);
       stage = 'survey';
     } else if (saved?.stage === 'done') {
@@ -99,6 +103,7 @@
   // ---------- Survey ----------
   let current = $derived(answers[index]);
   let currentValid = $derived(current ? MODELS.every((m) => isModelAnswerComplete(current[m.key])) : false);
+  let missingModels = $derived(current ? MODELS.filter((m) => !isModelAnswerComplete(current[m.key])).map((m) => m.label) : []);
   let isLast = $derived(index === answers.length - 1);
   let progress = $derived(answers.length ? (index / answers.length) * 100 : 0);
   let firstName = $derived(participant.name.split(' ')[0] ?? '');
@@ -290,12 +295,8 @@
           </p>
 
           {#each MODELS as m, i (m.key)}
-            <ModelQuestion label={m.label} name="{m.key}-{index}" order={i + 1} {showErrors} bind:value={answers[index][m.key]} />
+            <ModelQuestion label={m.label} name="{m.key}-{index}" order={i + 1} bind:value={answers[index][m.key]} />
           {/each}
-
-          {#if showErrors && !currentValid}
-            <p class="err block" role="alert">Completa las preguntas marcadas en rojo para continuar.</p>
-          {/if}
           {#if submitError}
             <div class="alert" role="alert">
               <strong>No pudimos enviar tus respuestas.</strong>
@@ -306,10 +307,15 @@
 
           <nav class="actions">
             <button type="button" class="btn" onclick={back} disabled={index === 0 || stage === 'submitting'}>Anterior</button>
-            <button type="button" class="btn primary" onclick={next} disabled={stage === 'submitting'}>
+            <button type="button" class="btn primary" onclick={next} disabled={!currentValid || stage === 'submitting'} aria-describedby="next-hint">
               {#if stage === 'submitting'}Enviando…{:else if isLast}Enviar respuestas{:else}Siguiente imagen{/if}
             </button>
           </nav>
+          {#if !currentValid}
+            <p class="next-hint" id="next-hint">
+              Elige tu nivel de satisfacción con {missingModels.join(' y ')} para continuar.
+            </p>
+          {/if}
         </div>
       </div>
     {:else if stage === 'done'}
@@ -540,10 +546,6 @@
     color: var(--red-ink);
     font-size: 0.82rem;
   }
-  .err.block {
-    margin-top: 1rem;
-    font-size: 0.9rem;
-  }
   .wide {
     width: 100%;
     margin-top: 0.4rem;
@@ -646,6 +648,12 @@
     margin-top: 2rem;
     padding-top: 1.5rem;
     border-top: 1px solid var(--line);
+  }
+  .next-hint {
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-align: right;
   }
   .alert {
     margin-top: 1.25rem;

@@ -1,26 +1,31 @@
 <script>
   import { SATISFACTION_LABELS } from '../config.js';
 
-  /** @type {{ label: string, name: string, order: number, showErrors?: boolean, value: { queries: number|null, found: boolean, satisfaction: number|null } }} */
-  let { label, name, order, showErrors = false, value = $bindable() } = $props();
+  /** @type {{ label: string, name: string, order: number, value: { queries: number, found: boolean, satisfaction: number|null } }} */
+  let { label, name, order, value = $bindable() } = $props();
 
+  // At least one search is always made, so the count starts at 1 and never goes lower.
   const MIN = 1;
   const MAX = 100;
 
-  let queriesMissing = $derived(!(Number.isInteger(value.queries) && value.queries >= MIN && value.queries <= MAX));
-  let satisfactionMissing = $derived(!value.satisfaction);
-  let complete = $derived(!queriesMissing && !satisfactionMissing);
+  let complete = $derived(!!value.satisfaction);
+
+  const clamp = (n) => Math.max(MIN, Math.min(MAX, n));
 
   function setQueries(e) {
     const digits = e.currentTarget.value.replace(/\D/g, '').slice(0, 3);
     e.currentTarget.value = digits;
     const n = parseInt(digits, 10);
-    value.queries = Number.isNaN(n) ? null : Math.min(n, MAX);
+    // While the field is empty (mid-edit) the stored value stays valid; blur restores the text.
+    value.queries = Number.isNaN(n) ? MIN : clamp(n);
+  }
+
+  function syncField(e) {
+    e.currentTarget.value = String(value.queries);
   }
 
   function step(delta) {
-    const current = value.queries ?? 0;
-    value.queries = Math.max(MIN, Math.min(MAX, current + delta));
+    value.queries = clamp((value.queries ?? MIN) + delta);
   }
 </script>
 
@@ -31,7 +36,7 @@
     <span class="status" aria-hidden="true">{complete ? 'Completo' : ''}</span>
   </header>
 
-  <div class="q" class:invalid={showErrors && queriesMissing}>
+  <div class="q">
     <label for="{name}-queries">
       {#if value.found}
         ¿Cuántas consultas (búsquedas) hiciste hasta encontrar el resultado deseado?
@@ -40,15 +45,16 @@
       {/if}
     </label>
     <div class="stepper">
-      <button type="button" onclick={() => step(-1)} disabled={!value.queries || value.queries <= MIN} aria-label="Restar una consulta">−</button>
+      <button type="button" onclick={() => step(-1)} disabled={value.queries <= MIN} aria-label="Restar una consulta">−</button>
       <input
         id="{name}-queries"
         type="text"
         inputmode="numeric"
         autocomplete="off"
-        placeholder="0"
-        value={value.queries ?? ''}
+        value={value.queries}
         oninput={setQueries}
+        onblur={syncField}
+        onfocus={(e) => e.currentTarget.select()}
       />
       <button type="button" onclick={() => step(1)} disabled={value.queries >= MAX} aria-label="Sumar una consulta">+</button>
     </div>
@@ -59,7 +65,7 @@
     </label>
   </div>
 
-  <div class="q" class:invalid={showErrors && satisfactionMissing}>
+  <div class="q">
     <span class="qlabel" id="{name}-sat">¿Qué tan satisfecho/a quedaste con los resultados?</span>
     <div class="scale" role="radiogroup" aria-labelledby="{name}-sat">
       {#each [1, 2, 3, 4, 5] as n}
@@ -123,20 +129,12 @@
     color: var(--ink);
     margin-bottom: 0.6rem;
   }
-  .invalid > label:first-child,
-  .invalid .qlabel {
-    color: var(--red-ink);
-  }
-
   .stepper {
     display: inline-flex;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     overflow: hidden;
     transition: border-color 0.15s;
-  }
-  .invalid .stepper {
-    border-color: var(--red-ink);
   }
   .stepper:focus-within {
     border-color: var(--red-ink);
@@ -191,9 +189,6 @@
     border: 1px solid var(--line);
     border-radius: var(--radius);
     overflow: hidden;
-  }
-  .invalid .scale {
-    border-color: var(--red-ink);
   }
   .opt {
     position: relative;
