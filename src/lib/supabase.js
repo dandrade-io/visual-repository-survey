@@ -27,6 +27,11 @@ export async function submitSurvey(participant, answers) {
   });
   if (p.error && !isDuplicate(p.error)) throw p.error;
 
+  // The query is required in the form, but participants who started before the field
+  // existed have no query for images they already answered: store those as NULL
+  // (the column allows it), never as '' (which the length check would reject).
+  const queryOrNull = (q) => (typeof q === 'string' && q.trim() ? q.trim() : null);
+
   const rows = answers.map((a, i) => ({
     participant_id: participant.id,
     position: i + 1,
@@ -34,9 +39,11 @@ export async function submitSurvey(participant, answers) {
     image_original: a.image.original,
     jina_queries: a.jina.queries,
     jina_found: a.jina.found,
+    jina_query: queryOrNull(a.jina.query),
     jina_satisfaction: a.jina.satisfaction,
     siglip_queries: a.siglip.queries,
     siglip_found: a.siglip.found,
+    siglip_query: queryOrNull(a.siglip.query),
     siglip_satisfaction: a.siglip.satisfaction,
   }));
 

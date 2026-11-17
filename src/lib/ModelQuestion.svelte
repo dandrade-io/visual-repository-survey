@@ -1,14 +1,15 @@
 <script>
   import { SATISFACTION_LABELS } from '../config.js';
+  import { missingParts, QUERY_MAX_LENGTH } from './state.js';
 
-  /** @type {{ label: string, name: string, order: number, value: { queries: number, found: boolean, satisfaction: number|null } }} */
+  /** @type {{ label: string, name: string, order: number, value: { queries: number, found: boolean, query: string, satisfaction: number|null } }} */
   let { label, name, order, value = $bindable() } = $props();
 
   // At least one search is always made, so the count starts at 1 and never goes lower.
   const MIN = 1;
   const MAX = 100;
 
-  let complete = $derived(!!value.satisfaction);
+  let complete = $derived(missingParts(value).length === 0);
 
   const clamp = (n) => Math.max(MIN, Math.min(MAX, n));
 
@@ -63,6 +64,26 @@
       <input type="checkbox" checked={!value.found} onchange={(e) => (value.found = !e.currentTarget.checked)} />
       <span>No logré encontrar la imagen con este modelo</span>
     </label>
+  </div>
+
+  <div class="q">
+    <label for="{name}-query">
+      {#if value.found}
+        ¿Qué consulta escribiste para obtener el resultado?
+      {:else}
+        ¿Cuál fue la última consulta que intentaste?
+      {/if}
+    </label>
+    <input
+      id="{name}-query"
+      type="text"
+      autocomplete="off"
+      autocapitalize="off"
+      spellcheck="false"
+      maxlength={QUERY_MAX_LENGTH}
+      placeholder="Cópiala tal como la escribiste en el buscador"
+      bind:value={value.query}
+    />
   </div>
 
   <div class="q">

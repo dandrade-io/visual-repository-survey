@@ -1,7 +1,7 @@
 <script>
   import { onMount, tick } from 'svelte';
   import { IMAGES_PER_PARTICIPANT, ALLOWED_EMAIL_DOMAINS, MODELS, SEARCH_ENGINE_URL } from './config.js';
-  import { loadState, saveState, clearState, sample, emptyAnswer, isModelAnswerComplete } from './lib/state.js';
+  import { loadState, saveState, clearState, sample, emptyAnswer, isModelAnswerComplete, missingParts } from './lib/state.js';
   import { submitSurvey, supabaseConfigured } from './lib/supabase.js';
   import ModelQuestion from './lib/ModelQuestion.svelte';
   import SearchSteps from './lib/SearchSteps.svelte';
@@ -11,11 +11,15 @@
   const searchHost = SEARCH_ENGINE_URL.replace(/^https?:\/\//, '').replace(/\/$/, '');
   const pad = (n) => String(n).padStart(2, '0');
 
-  // 'loading' | 'info' | 'survey' | 'submitting' | 'done' | 'error'
+  // 'loading' | 'info' | 'instructions' | 'survey' | 'submitting' | 'done' | 'error'
   let stage = $state('loading');
   let participant = $state({ id: '', name: '', email: '', career: '' });
   let answers = $state([]);
   let index = $state(0);
+  // Whether the participant already dismissed the "search from memory" dialog.
+  let introSeen = $state(false);
+  /** @type {HTMLDialogElement | undefined} */
+  let introDialog = $state();
   let consent = $state(false);
   let manifest = [];
   let loadError = $state('');
@@ -34,15 +38,19 @@
       return;
     }
     const saved = loadState();
-    if (saved && ['survey', 'submitting'].includes(saved.stage) && saved.answers?.length) {
+    if (saved && ['instructions', 'survey', 'submitting'].includes(saved.stage) && saved.answers?.length) {
       participant = saved.participant;
       // Progress saved before queries defaulted to 1 may still hold null.
       answers = saved.answers.map((a) => {
-        for (const m of MODELS) if (!(a[m.key].queries >= 1)) a[m.key].queries = 1;
+        for (const m of MODELS) {
+          if (!(a[m.key].queries >= 1)) a[m.key].queries = 1;
+          if (typeof a[m.key].query !== 'string') a[m.key].query = '';
+        }
         return a;
       });
       index = Math.min(saved.index ?? 0, saved.answers.length - 1);
-      stage = 'survey';
+      introSeen = !!saved.introSeen;
+      stage = saved.stage === 'instructions' ? 'instructions' : 'survey';
     } else if (saved?.stage === 'done') {
       participant = saved.participant ?? participant;
       stage = 'done';
@@ -55,7 +63,12 @@
   // Persist progress on every change.
   $effect(() => {
     if (stage === 'loading' || stage === 'error') return;
-    saveState({ stage, participant: $state.snapshot(participant), answers: $state.snapshot(answers), index });
+    saveState({ stage, participant: $state.snapshot(participant), answers: $state.snapshot(answers), index, introSeen });
+  });
+
+  // Show the "search from memory" dialog the first time the survey opens.
+  $effect(() => {
+    if (stage === 'survey' && !introSeen && introDialog && !introDialog.open) introDialog.showModal();
   });
 
   // ---------- Personal info ----------
@@ -85,7 +98,7 @@
     if (el instanceof HTMLInputElement) el.focus({ preventScroll: true });
   }
 
-  function startSurvey(e) {
+  function register(e) {
     e.preventDefault();
     showErrors = true;
     if (!infoValid) return focusFirstError();
@@ -96,14 +109,39 @@
     answers = sample(manifest, IMAGES_PER_PARTICIPANT).map(emptyAnswer);
     index = 0;
     showErrors = false;
+    stage = 'instructions';
+    scrollTop();
+  }
+
+  // ---------- Instructions ----------
+  function editInfo() {
+    stage = 'info';
+    scrollTop();
+  }
+
+  function beginSurvey() {
+    index = 0;
     stage = 'survey';
     scrollTop();
+  }
+
+  function closeIntro() {
+    introSeen = true;
+    introDialog?.close();
   }
 
   // ---------- Survey ----------
   let current = $derived(answers[index]);
   let currentValid = $derived(current ? MODELS.every((m) => isModelAnswerComplete(current[m.key])) : false);
-  let missingModels = $derived(current ? MODELS.filter((m) => !isModelAnswerComplete(current[m.key])).map((m) => m.label) : []);
+  // e.g. "la consulta de SigLIP 2" / "la consulta y la satisfacción de JinaCLIP v2"
+  const PART_LABELS = { query: 'la consulta', satisfaction: 'la satisfacción' };
+  let missingSummary = $derived(
+    current
+      ? MODELS.map((m) => ({ label: m.label, parts: missingParts(current[m.key]) }))
+          .filter((x) => x.parts.length)
+          .map((x) => `${x.parts.map((p) => PART_LABELS[p]).join(' y ')} de ${x.label}`)
+      : [],
+  );
   let isLast = $derived(index === answers.length - 1);
   let progress = $derived(answers.length ? (index / answers.length) * 100 : 0);
   let firstName = $derived(participant.name.split(' ')[0] ?? '');
@@ -160,6 +198,7 @@
     answers = [];
     index = 0;
     consent = false;
+    introSeen = false;
     stage = 'info';
     scrollTop();
   }
@@ -206,23 +245,22 @@
           <p class="caps kicker">Encuesta · {IMAGES_PER_PARTICIPANT} imágenes · 15 a 20 minutos</p>
           <h1>Evaluación del<br /><em>buscador visual</em></h1>
           <p class="lede">
-            Queremos saber qué tan fácil es encontrar una imagen describiéndola con palabras. Vas a comparar
-            dos modelos de búsqueda, <strong>{MODELS[0].label}</strong> y <strong>{MODELS[1].label}</strong>,
-            usando imágenes elegidas al azar.
+            Queremos conocer tu experiencia al buscar imágenes describiéndolas con palabras. Vas a usar dos
+            modelos de búsqueda, <strong>{MODELS[0].label}</strong> y <strong>{MODELS[1].label}</strong>, con
+            imágenes elegidas al azar.
           </p>
 
-          <a class="site" href={SEARCH_ENGINE_URL} target="_blank" rel="noopener">
-            <span class="caps">El buscador</span>
-            <span class="url">{searchHost}</span>
-            <span class="arrow" aria-hidden="true">↗</span>
-          </a>
+          <ol class="roadmap" aria-label="Etapas de la encuesta">
+            <li class="current"><span>Tus datos</span></li>
+            <li><span>Cómo buscar</span></li>
+            <li><span>{IMAGES_PER_PARTICIPANT} imágenes</span></li>
+          </ol>
 
-          <h2 class="section-title">Cómo buscar cada imagen</h2>
-          <SearchSteps />
+          <div class="contact-block"><Contact /></div>
         </div>
 
         <aside class="side">
-          <form class="panel" onsubmit={startSurvey} novalidate>
+          <form class="panel" onsubmit={register} novalidate>
             <h2>Tus datos</h2>
             <p class="panel-note">Se usan solo para identificar tus respuestas.</p>
 
@@ -248,12 +286,32 @@
             </label>
             {#if showErrors && infoErrors.consent}<small class="err">{infoErrors.consent}</small>{/if}
 
-            <button type="submit" class="btn primary wide">Comenzar encuesta</button>
+            <button type="submit" class="btn primary wide">Continuar</button>
           </form>
-
-          <div class="contact-block"><Contact /></div>
         </aside>
       </div>
+    {:else if stage === 'instructions'}
+      <section class="instructions">
+        <p class="caps kicker">Paso 2 de 3 · Antes de empezar</p>
+        <h1>Cómo buscar<br /><em>cada imagen</em></h1>
+        <p class="lede">
+          Lee estos pasos con calma. Son los mismos para las {IMAGES_PER_PARTICIPANT} imágenes y los vas a poder
+          consultar durante la encuesta.
+        </p>
+
+        <a class="site" href={SEARCH_ENGINE_URL} target="_blank" rel="noopener">
+          <span class="caps">El buscador</span>
+          <span class="url">{searchHost}</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+
+        <SearchSteps />
+
+        <nav class="actions">
+          <button type="button" class="btn" onclick={editInfo}>Corregir mis datos</button>
+          <button type="button" class="btn primary" onclick={beginSurvey}>Ver la primera imagen</button>
+        </nav>
+      </section>
     {:else if (stage === 'survey' || stage === 'submitting') && current}
       <div class="survey">
         <div class="viewer">
@@ -280,7 +338,7 @@
               <li>
                 Abre <a href={SEARCH_ENGINE_URL} target="_blank" rel="noopener">{searchHost}</a>.
               </li>
-              <li>Escribe una descripción, elige <strong>{MODELS[0].label}</strong> y presiona Enter o <em>Buscar</em>.</li>
+              <li>Describe lo que recuerdas de la imagen, elige <strong>{MODELS[0].label}</strong> y presiona Enter o <em>Buscar</em>.</li>
               <li>Reformula hasta encontrarla. Cada búsqueda es una consulta.</li>
               <li>Cambia el modelo a <strong>{MODELS[1].label}</strong> y repite.</li>
             </ol>
@@ -313,7 +371,7 @@
           </nav>
           {#if !currentValid}
             <p class="next-hint" id="next-hint">
-              Elige tu nivel de satisfacción con {missingModels.join(' y ')} para continuar.
+              Para continuar, completa {missingSummary.join('; ')}.
             </p>
           {/if}
         </div>
@@ -330,6 +388,20 @@
       </section>
     {/if}
   </main>
+
+  <dialog class="intro-dialog" bind:this={introDialog} onclose={() => (introSeen = true)} aria-labelledby="intro-title">
+    <p class="caps kicker">Antes de la primera imagen</p>
+    <h2 id="intro-title">Busca con lo que recuerdes</h2>
+    <p>
+      Observa cada imagen con atención. Después, en el buscador, descríbela con lo que recuerdes de ella, como
+      cuando intentas encontrar una foto que viste antes.
+    </p>
+    <p>
+      <strong>Esto no es una prueba.</strong> No evaluamos qué tan bien buscas y no hay respuestas correctas
+      ni incorrectas. Queremos conocer tu experiencia con cada modelo.
+    </p>
+    <button type="button" class="btn primary wide" onclick={closeIntro}>Entendido</button>
+  </dialog>
 
   <footer id="ayuda">
     <div class="inner">
@@ -493,9 +565,86 @@
   .site:hover .arrow {
     transform: translate(2px, -2px);
   }
-  .section-title {
-    font-size: 1.9rem;
-    margin-bottom: 1.6rem;
+  .roadmap {
+    list-style: none;
+    display: flex;
+    gap: 1.25rem;
+    margin: 2.75rem 0 0;
+    padding: 0;
+    max-width: 34rem;
+    counter-reset: stage;
+    border-top: 1px solid var(--line);
+  }
+  .roadmap li {
+    flex: 1;
+    position: relative;
+    padding-top: 0.85rem;
+    font-size: 0.85rem;
+    color: var(--muted);
+    counter-increment: stage;
+  }
+  .roadmap li::before {
+    content: counter(stage, decimal-leading-zero);
+    display: block;
+    font-family: var(--serif);
+    font-size: 1.5rem;
+    font-weight: 500;
+    line-height: 1.1;
+    color: #bdbdb9;
+  }
+  .roadmap li.current {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .roadmap li.current::before {
+    color: var(--red);
+  }
+  .roadmap li.current::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--red);
+  }
+
+  /* Instructions */
+  .instructions {
+    max-width: 44rem;
+    margin: 0 auto;
+  }
+
+  /* "Search from memory" dialog */
+  .intro-dialog {
+    width: calc(100% - 32px);
+    max-width: 31rem;
+    padding: 2.2rem 2rem 2rem;
+    border: none;
+    border-top: 4px solid var(--red);
+    border-radius: 10px;
+    color: var(--text);
+    background: var(--paper);
+    box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.35);
+  }
+  .intro-dialog::backdrop {
+    background: rgba(26, 26, 26, 0.55);
+    backdrop-filter: blur(3px);
+  }
+  .intro-dialog h2 {
+    font-size: 2.1rem;
+    margin-bottom: 1rem;
+  }
+  .intro-dialog p:not(.kicker) {
+    color: var(--muted);
+    margin-bottom: 0.9rem;
+  }
+  .intro-dialog strong {
+    color: var(--ink);
+    font-weight: 500;
+  }
+  .intro-dialog .wide {
+    margin-top: 0.8rem;
   }
 
   .side {
@@ -552,7 +701,8 @@
     padding: 1rem;
   }
   .contact-block {
-    margin-top: 2rem;
+    margin-top: 2.75rem;
+    max-width: 34rem;
   }
 
   /* Survey */

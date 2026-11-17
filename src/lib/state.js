@@ -42,11 +42,21 @@ export function sample(list, n) {
 export function emptyAnswer(image) {
   return {
     image,
-    jina: { queries: 1, found: true, satisfaction: null },
-    siglip: { queries: 1, found: true, satisfaction: null },
+    jina: { queries: 1, found: true, query: '', satisfaction: null },
+    siglip: { queries: 1, found: true, query: '', satisfaction: null },
   };
 }
 
+export const QUERY_MAX_LENGTH = 500;
+
+/** Which parts of one model's answer are still missing: 'query' and/or 'satisfaction'. */
+export function missingParts(m) {
+  const missing = [];
+  if (!(m.query ?? '').trim()) missing.push('query');
+  if (!(m.satisfaction >= 1 && m.satisfaction <= 5)) missing.push('satisfaction');
+  return missing;
+}
+
 export function isModelAnswerComplete(m) {
-  return Number.isInteger(m.queries) && m.queries >= 1 && m.queries <= 100 && m.satisfaction >= 1 && m.satisfaction <= 5;
+  return Number.isInteger(m.queries) && m.queries >= 1 && m.queries <= 100 && missingParts(m).length === 0;
 }

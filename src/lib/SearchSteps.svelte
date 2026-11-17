@@ -7,7 +7,7 @@
 <ol class="steps">
   <li>
     <h3>Observa la imagen</h3>
-    <p>Cada página de la encuesta te muestra una imagen. Fíjate en lo que aparece en ella.</p>
+    <p>Cada página de la encuesta te muestra una imagen. Mírala con atención: luego la vas a buscar a partir de lo que recuerdes.</p>
   </li>
   <li>
     <h3>Abre el buscador</h3>
@@ -19,7 +19,7 @@
   <li>
     <h3>Escribe, elige el modelo y busca</h3>
     <p>
-      Describe la imagen con tus palabras, selecciona <strong>{MODELS[0].label}</strong> en la barra y
+      Describe con tus palabras lo que recuerdas de la imagen, selecciona <strong>{MODELS[0].label}</strong> en la barra y
       presiona <kbd>Enter</kbd> o el botón <em>Buscar</em>. Cada búsqueda cuenta como una consulta.
     </p>
 
