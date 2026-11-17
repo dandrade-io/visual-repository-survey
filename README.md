@@ -8,7 +8,7 @@ each model they report:
 - number of queries needed to find the image (1–100), plus a "couldn't find it" flag
 - satisfaction with the results (1 = none … 5 = very satisfied)
 
-Stack: Svelte 5 + Vite (static site on GitLab Pages) and Supabase (free tier) for storage.
+Stack: Svelte 5 + Vite (static site on GitHub Pages) and Supabase (free tier) for storage.
 
 ## 1. Supabase
 
@@ -36,13 +36,14 @@ npm run dev
 
 Without `.env.local` the app still runs in "test mode" (it shows a banner and saves nothing).
 
-## 3. Deploy to GitLab Pages
+## 3. Deploy to GitHub Pages
 
-1. Create a GitLab project and push this folder to `main`.
-2. Project → Settings → CI/CD → Variables: add `VITE_SUPABASE_URL` and
-   `VITE_SUPABASE_ANON_KEY`.
-3. Every push to `main` runs [`.gitlab-ci.yml`](.gitlab-ci.yml), which builds the
-   site and publishes it. The URL is shown under Deploy → Pages.
+1. Create a GitHub repo and push this folder to `main`.
+2. Repo → Settings → Secrets and variables → Actions → add the secrets
+   `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
+3. Repo → Settings → Pages → Source: **GitHub Actions**.
+4. Every push to `main` runs [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml),
+   which builds the site and publishes it to `https://<user>.github.io/<repo>/`.
 
 ## Images
 
