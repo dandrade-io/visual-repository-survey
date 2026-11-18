@@ -270,8 +270,8 @@
               {#if showErrors && infoErrors.name}<small class="err">{infoErrors.name}</small>{/if}
             </div>
             <div class="field">
-              <label for="email">Correo institucional</label>
-              <input id="email" type="email" autocomplete="email" placeholder="usuario@estud.usfq.edu.ec" bind:value={participant.email} aria-invalid={showErrors && !!infoErrors.email} />
+              <label for="email">{ALLOWED_EMAIL_DOMAINS.length ? 'Correo institucional' : 'Correo electrónico'}</label>
+              <input id="email" type="email" autocomplete="email" placeholder={ALLOWED_EMAIL_DOMAINS.length ? `usuario@${ALLOWED_EMAIL_DOMAINS[0]}` : 'nombre@correo.com'} bind:value={participant.email} aria-invalid={showErrors && !!infoErrors.email} />
               {#if showErrors && infoErrors.email}<small class="err">{infoErrors.email}</small>{/if}
             </div>
             <div class="field">

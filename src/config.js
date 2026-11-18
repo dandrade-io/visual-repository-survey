@@ -7,7 +7,7 @@ export const IMAGES_PER_PARTICIPANT = 12;
  * Accepted email domains (the part after "@", subdomains included).
  * Leave the array empty to accept any email.
  */
-export const ALLOWED_EMAIL_DOMAINS = ['usfq.edu.ec'];
+export const ALLOWED_EMAIL_DOMAINS = [];
 
 /** The search engine participants use. */
 export const SEARCH_ENGINE_URL = 'https://visual-repository.dandrade.io/';
